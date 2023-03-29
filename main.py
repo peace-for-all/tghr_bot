@@ -1,0 +1,147 @@
+import logging
+import os
+from io import BytesIO
+from datetime import datetime
+from telegram import Update, InputFile, InlineKeyboardMarkup, InlineKeyboardButton, Bot
+from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackContext, CallbackQueryHandler
+
+# Replace with your bot token
+
+
+TOKEN = ""
+WX_CHAT_ID = ""
+
+
+# Set up logging
+logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
+
+# Load CV data
+CV_DATA = {
+    "position": "Software Engineer (Backend, Python)",
+    "salary": "3000 USD after taxes",
+    "skills": ["Python", "Django", "Django REST Framework", "PostgreSQL", "Docker", "Git", "Rust", "Linux", "SQL"],
+    "education": "Moscow Institute of Electronic Technology, BSc in Applied Informatics, 2015",
+    "experience": "7+ years developing backends for web applications (described in cv)",
+    "github": "https://github.com/peace-for-all"
+    # Add other CV sections as needed
+}
+
+know_about_list = CV_DATA.keys()
+
+
+CV_FILE = "assets/cv_walsk_backend_python.pdf"
+
+
+def print_dialogue_data(update: Update):
+    sender_username = update.message.from_user.username
+    message_text = update.message.text
+
+    logging.info(f"INCOMING!\nfrom: {sender_username}\nmessage: {message_text}")
+
+
+# def gen_menu_kbd():
+#     keyboard = [
+#         [InlineKeyboardButton("Desired Position", callback_data="position")],
+#         [InlineKeyboardButton("Salary", callback_data="salary")],
+#         [InlineKeyboardButton("Work Experience", callback_data="experience")],
+#         [InlineKeyboardButton("Education", callback_data="education")],
+#         [InlineKeyboardButton("Skills", callback_data="skills")],
+#         [InlineKeyboardButton("Github", callback_data="github")],
+#         [InlineKeyboardButton("Get CV [pdf]", callback_data="cv")]
+#     ]
+#
+#     reply_markup = InlineKeyboardMarkup(keyboard)
+#     return reply_markup
+
+
+def start(update: Update, context: CallbackContext) -> None:
+    current_date = datetime.now().strftime("%m/%d/%Y")
+    update.message.reply_text(f"Hello!\nYes, I'm looking for a job today, {current_date}.\nI'm ready to answer any relevant questions.\nPlease, try: " + ", ".join(know_about_list) + "\n'/cv' for CV [pdf]\n")
+
+
+# def button_handler(update: Update, context: CallbackContext) -> None:
+#     query = update.callback_query
+#     query.answer()
+#
+#     if query.data == "experience":
+#         query.edit_message_text(text=CV_DATA["experience"])
+#     elif query.data == "position":
+#         query.edit_message_text(text=CV_DATA["position"])
+#     elif query.data == "salary":
+#         query.edit_message_text(text=CV_DATA["salary"])
+#     elif query.data == "education":
+#         query.edit_message_text(text=CV_DATA["education"])
+#     elif query.data == "skills":
+#         query.edit_message_text(text=", ".join(CV_DATA["skills"]))
+#     elif query.data == "github":
+#         query.edit_message_text(text=CV_DATA["github"])
+#     elif query.data == "cv":
+#         send_cv(update, context)
+#     else:
+#         query.edit_message_text(text="What? Recorded, wait for human. Meanwhile, I know these: " + ", ".join(know_about_list) + "\nAre you interested?")
+
+
+def send_cv(update: Update, context: CallbackContext) -> None:
+    with open(CV_FILE, "rb") as f:
+        cv_pdf = BytesIO(f.read())
+    cv_pdf.name = "cv.pdf"
+    context.bot.send_document(chat_id=update.effective_chat.id, document=InputFile(cv_pdf))
+
+
+def answer_desired_position(update: Update, context: CallbackContext) -> None:
+    print_dialogue_data(update)
+    update.message.reply_text(CV_DATA["position"])
+
+
+def answer_experience(update: Update, context: CallbackContext) -> None:
+    print_dialogue_data(update)
+    update.message.reply_text(CV_DATA["experience"])
+
+
+def answer_salary(update: Update, context: CallbackContext) -> None:
+    print_dialogue_data(update)
+    update.message.reply_text(CV_DATA["salary"])
+
+
+def answer_github(update: Update, context: CallbackContext) -> None:
+    print_dialogue_data(update)
+    update.message.reply_text(CV_DATA["github"])
+
+
+def answer_education(update: Update, context: CallbackContext) -> None:
+    print_dialogue_data(update)
+    update.message.reply_text(CV_DATA["education"])
+
+
+def unknown_message(update: Update, context: CallbackContext) -> None:
+    print_dialogue_data(update)
+
+    bot = Bot(TOKEN)
+    bot.send_message(chat_id=WX_CHAT_ID, text=f"INCOMING!\nfrom: t.me/{update.message.from_user.username}\nmessage: {update.message.text}")
+
+    update.message.reply_text("Redirected this to people, they'll get in touch shortly")
+
+
+def main() -> None:
+    updater = Updater(TOKEN)
+
+    dp = updater.dispatcher
+    dp.add_handler(CommandHandler("start", start))
+    dp.add_handler(CommandHandler("cv", send_cv))
+    # dp.add_handler(CallbackQueryHandler(button_handler))  # Add this handler for processing button clicks
+
+    # This was autogenerated. Sorry. I'll fix this later.
+    dp.add_handler(MessageHandler(Filters.regex(r"(?i)position"), answer_desired_position))
+    dp.add_handler(MessageHandler(Filters.regex(r"(?i)salary"), answer_salary))
+    dp.add_handler(MessageHandler(Filters.regex(r"(?i)skills"), answer_experience))
+    dp.add_handler(MessageHandler(Filters.regex(r"(?i)education"), answer_education))
+    dp.add_handler(MessageHandler(Filters.regex(r"(?i)experience"), answer_experience))
+    dp.add_handler(MessageHandler(Filters.regex(r"(?i)github"), answer_github))
+    dp.add_handler(MessageHandler(Filters.text & ~Filters.command, unknown_message))
+
+    updater.start_polling()
+    updater.idle()
+
+
+if __name__ == '__main__':
+    main()
